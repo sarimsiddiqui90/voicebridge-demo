@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VoiceBridge — Live Demo</title>
+<style>
+:root{--bg:#fafaf7;--card:#fff;--ink:#14161a;--muted:#6b7280;--line:#e7e5df;--brand:#0f766e;--brand2:#14b8a6;--accent:#f59e0b;--radius:18px}
+body.dark{--bg:#0c0e12;--card:#14171d;--ink:#f3f4f6;--muted:#9ca3af;--line:#262a31}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1060px;margin:0 auto;padding:22px}header{display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:24px;font-weight:900}.tag{color:var(--muted)}
+.btn{background:var(--brand);color:#fff;border:0;border-radius:999px;padding:12px 20px;font-weight:700;cursor:pointer;font-size:15px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.rec{background:#dc2626}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.grid{display:grid;gap:16px}@media(min-width:820px){.grid2{grid-template-columns:1fr 1fr}}
+select,input[type=text]{padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:100%;font-size:15px}
+.caption{border-inline-start:4px solid var(--brand2);padding:10px 14px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.caption .tr{color:var(--brand);font-weight:700;font-size:18px;margin-top:4px}
+.pill{display:inline-block;padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.step{display:none}.step.on{display:block}
+.meter{height:10px;background:var(--line);border-radius:99px;overflow:hidden}.meter i{display:block;height:100%;background:var(--brand2);width:0%}
+.lat{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+h1{font-size:46px;line-height:1.05;margin:18px 0 10px}h2{margin:0 0 8px}
+.rtl{direction:rtl;text-align:right}
+</style></head>
+<body><div class="wrap">
+<header><div class="logo">🌉 VoiceBridge <span class="pill">LIVE DEMO — no sign-up, no API keys</span></div><button class="btn ghost" onclick="document.body.classList.toggle('dark')">🌙 / ☀️</button></header>
+
+<h1>Speak yours. <span style="color:var(--brand)">Hear yours.</span></h1>
+<p class="tag" style="font-size:18px;max-width:720px">You speak Urdu — they hear natural Arabic, in <b>your</b> voice. This demo runs the real pipeline in your browser: mic → speech-to-text → translation → spoken back in the other language. Clone-voice TTS switches on in the full app with ElevenLabs/Azure keys.</p>
+
+<div class="card" id="onboard">
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill" id="p1">1 · Language</span><span class="pill" id="p2">2 · Voice</span><span class="pill" id="p3">3 · Meeting</span><span class="pill" id="geo">📍 detecting country…</span></div>
+
+ <div class="step on" id="s1">
+  <h2 style="margin-top:16px">Choose your languages</h2>
+  <p class="tag" id="suggest">We pre-suggest from your country — you can change it, your choice always wins.</p>
+  <div class="grid grid2">
+   <div><label>I speak</label><select id="speakLang"></select></div>
+   <div><label>I want to hear the other person in</label><select id="hearLang"></select></div>
+  </div>
+  <p><button class="btn" onclick="go(2)">Continue →</button></p>
+ </div>
+
+ <div class="step" id="s2">
+  <h2 style="margin-top:16px">Your voice profile <span class="pill">optional</span></h2>
+  <p class="tag">Full app: 30–60s enrollment → cloned voice (consent-gated, deletable, verified against your live mic so no one can clone someone else). Here you can record a sample and hear it back.</p>
+  <label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="consent" style="width:auto;margin-top:3px"> <span>I consent to cloning <b>my own</b> voice for live translation. I can delete my profile anytime.</span></label>
+  <p><button class="btn" id="recBtn" disabled onclick="toggleRec()">🎙️ Record 10s sample</button> <audio id="recPlay" controls style="display:none;vertical-align:middle"></audio> <button class="btn ghost" onclick="go(3)">Skip — neutral voice</button></p>
+  <div class="meter"><i id="meterBar"></i></div>
+ </div>
+
+ <div class="step" id="s3">
+  <h2 style="margin-top:16px">Live meeting room <span class="pill">demo room · up to 10 in full app</span></h2>
+  <p class="tag">Press <b>Start speaking</b> and talk — or type. You'll see the original caption + the translation, and hear the translation spoken. Swap the languages above to play the Saudi listener hearing Arabic, etc.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <button class="btn" id="micBtn" onclick="toggleMic()">🎙️ Start speaking</button>
+    <select id="mode" style="width:auto"><option value="translated">Translated voice only</option><option value="both">Original + translated</option><option value="captions">Captions only</option></select>
+    <label class="tag">Vol <input type="range" id="vol" min="0" max="1" step="0.05" value="1" style="width:90px"></label>
+    <label class="tag">Speed <input type="range" id="speed" min="0.7" max="1.4" step="0.1" value="1" style="width:90px"></label>
+    <button class="btn ghost" onclick="downloadTranscript()">⬇ Transcript</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:10px"><input type="text" id="typed" placeholder="…or type a sentence, e.g. السلام علیکم، آپ کیسے ہیں؟ / Hello, how are you?"><button class="btn" onclick="sendTyped()">Send</button></div>
+  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+    <button class="btn ghost" onclick="saySample('ur')">Try sample: Urdu speaker</button>
+    <button class="btn ghost" onclick="saySample('en')">Try sample: English speaker</button>
+    <button class="btn ghost" onclick="saySample('ar')">Try sample: Arabic speaker</button>
+  </div>
+  <div id="feed" style="margin-top:14px"><p class="tag">Live captions will appear here — original on top, translation underneath, with latency.</p></div>
+  <div id="partial"></div>
+ </div>
+</div>
+
+<div class="grid grid2" style="margin-top:16px">
+ <div class="card"><h3>⚡ Pipeline (target &lt; 1.5s)</h3><p class="tag">Mic → streaming STT + auto language detection → context-aware translation (tone & idioms preserved) → cloned-voice TTS → playback. Sentence-boundary chunking: partial captions stream instantly, full sentences get translated & spoken.</p><p class="lat" id="latency">Last translation latency: —</p></div>
+ <div class="card"><h3>🔌 In the full MVP (code included)</h3><p class="tag">FastAPI + WebSocket backend with pluggable providers — Deepgram/Whisper STT, DeepL/GPT translation, ElevenLabs/Azure cloned TTS — plus Next.js web app, Chrome extension (Meet/Zoom/Teams), Electron desktop (virtual audio) and React Native mobile skeletons. See README in the zip.</p></div>
+</div>
+<p class="tag" style="margin-top:16px">Privacy: no audio is stored by default in the full app · audio encrypted in transit (WSS/DTLS-SRTP) · voice profiles deletable anytime.</p>
+</div>
+
+<script>
+const LANGS=[["ur","Urdu — اردو",1],["ar-SA","Arabic (Saudi) — العربية",1],["ar-EG","Arabic (Egyptian) — مصري",1],["ar-LB","Arabic (Levantine) — شامي",1],["hi","Hindi — हिन्दी",0],["en-US","English (US)",0],["en-GB","English (UK)",0],["tr","Turkish — Türkçe",0],["zh-CN","Chinese — 中文",0],["fr","French — Français",0],["es","Spanish — Español",0],["de","German — Deutsch",0],["fa","Persian — فارسی",1],["ps","Pashto — پښتو",1],["bn","Bengali — বাংলা",0],["pa","Punjabi — ਪੰਜਾਬੀ",0],["id","Indonesian",0],["ru","Russian — Русский",0],["ja","Japanese — 日本語",0],["ko","Korean — 한국어",0],["it","Italian — Italiano",0],["pt","Portuguese",0],["nl","Dutch",0],["pl","Polish",0],["uk","Ukrainian",0],["he","Hebrew — עברית",1],["sv","Swedish",0],["sw","Swahili",0],["uz","Uzbek",0],["kk","Kazakh",0],["az","Azerbaijani",0],["sd","Sindhi — سنڌي",1],["ta","Tamil",0],["te","Telugu",0],["ml","Malayalam",0],["ms","Malay",0],["th","Thai",0],["vi","Vietnamese",0],["fil","Filipino",0]];
+const COUNTRY={SA:"ar-SA",AE:"ar-SA",QA:"ar-SA",KW:"ar-SA",EG:"ar-EG",LB:"ar-LB",JO:"ar-LB",PK:"ur",IN:"hi",TR:"tr",CN:"zh-CN",FR:"fr",ES:"es",DE:"de",BR:"pt",RU:"ru",JP:"ja",KR:"ko",IT:"it",IR:"fa",AF:"ps",BD:"bn",ID:"id",MY:"ms",TH:"th",VN:"vi",PH:"fil",GB:"en-GB",US:"en-US",CA:"en-US",AU:"en-GB"};
+const speakSel=document.getElementById('speakLang'), hearSel=document.getElementById('hearLang');
+LANGS.forEach(([c,n])=>{speakSel.add(new Option(n,c)); hearSel.add(new Option(n,c))});
+speakSel.value="ur"; hearSel.value="ar-SA";
+fetch('https://ipapi.co/json/').then(r=>r.json()).then(d=>{const cc=d.country_code, sug=COUNTRY[cc]; document.getElementById('geo').textContent=`📍 ${d.country_name||cc} detected`; if(sug){speakSel.value=sug; hearSel.value=sug; document.getElementById('suggest').innerHTML=`📍 Detected <b>${d.country_name}</b> → suggested <b>${sug}</b>. Confirm or change below — your override always wins.`}}).catch(()=>{document.getElementById('geo').textContent='📍 Country detection unavailable — pick your language';});
+function go(n){[1,2,3].forEach(i=>document.getElementById('s'+i).classList.toggle('on',i===n)); window.scrollTo({top:0,behavior:'smooth'})}
+document.getElementById('consent').addEventListener('change',e=>document.getElementById('recBtn').disabled=!e.target.checked);
+// voice sample recorder
+let mr,chunks=[],recOn=false,recTimer;
+async function toggleRec(){const b=document.getElementById('recBtn'); if(recOn){mr.stop();return}
+ try{const stream=await navigator.mediaDevices.getUserMedia({audio:true}); mr=new MediaRecorder(stream); chunks=[]; mr.ondataavailable=e=>chunks.push(e.data); mr.onstop=()=>{recOn=false;b.textContent='🎙️ Record again';b.classList.remove('rec'); const a=document.getElementById('recPlay'); a.src=URL.createObjectURL(new Blob(chunks,{type:'audio/webm'})); a.style.display='inline'; stream.getTracks().forEach(t=>t.stop()); go(3)}; mr.start(); recOn=true; b.textContent='⏹ Recording… tap to stop (auto 10s)'; b.classList.add('rec'); let p=0; const bar=document.getElementById('meterBar'); clearInterval(recTimer); recTimer=setInterval(()=>{p+=10; bar.style.width=Math.min(p,100)+'%'; if(p>=100){clearInterval(recTimer); if(recOn)mr.stop()}},1000);}catch(e){alert('Mic permission needed for the sample. You can skip — neutral voice works fine.');}}
+// translation — MyMemory free API (demo), sentence by sentence
+async function translate(text,src,tgt){const s=src.split('-')[0], t=tgt.split('-')[0]; if(s===t) return text; const t0=performance.now();
+ try{const r=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${s}|${t}`); const d=await r.json(); const out=d.responseData&&d.responseData.translatedText; if(out){document.getElementById('latency').textContent=`Last translation latency: ${Math.round(performance.now()-t0)} ms (demo translator) · full pipeline target < 1,500 ms`; return out}}catch(e){}
+ return text+'  [translation service busy — try again]';}
+let history=[];
+function isRTL(code){const l=LANGS.find(x=>x[0]===code); return l&&l[2]}
+async function handleFinal(text,srcOverride){const src=srcOverride||speakSel.value, tgt=hearSel.value; if(!text.trim())return;
+ const div=document.createElement('div'); div.className='caption'; if(isRTL(src))div.classList.add('rtl');
+ div.innerHTML=`<b>Speaker (${src}):</b> ${text}<div class="tr">… translating</div>`; const feed=document.getElementById('feed'); if(feed.querySelector('.tag'))feed.innerHTML=''; feed.prepend(div);
+ const tr=await translate(text,src,tgt); const trEl=div.querySelector('.tr'); trEl.textContent='↳ '+tr; if(isRTL(tgt))trEl.classList.add('rtl'); trEl.insertAdjacentHTML('beforeend',` <span class="pill">heard in ${tgt} · ${document.getElementById('consent').checked?'your cloned voice (full app)':'neutral voice'}</span>`);
+ history.push({src,text,tgt,tr});
+ const mode=document.getElementById('mode').value; if(mode!=='captions'){ if(mode==='both'){speak(text,src)} speak(tr,tgt) }}
+function speak(text,lang){try{const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.volume=+document.getElementById('vol').value; u.rate=+document.getElementById('speed').value; const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.startsWith(lang.split('-')[0])); if(v)u.voice=v; speechSynthesis.speak(u)}catch(e){}}
+speechSynthesis && speechSynthesis.getVoices();
+function sendTyped(){const i=document.getElementById('typed'); handleFinal(i.value); i.value=''}
+document.getElementById('typed').addEventListener('keydown',e=>{if(e.key==='Enter')sendTyped()});
+const SAMPLES={ur:['السلام علیکم، میرا نام سارم ہے۔','آج کی میٹنگ میں ہم نئی پراڈکٹ پر بات کریں گے۔','شکریہ، آپ کا دن اچھا گزرے۔'],en:['Hello everyone, welcome to the meeting.','Today we will discuss the new launch plan.','Thank you, that sounds perfect to me.'],ar:['مرحبا بالجميع، أهلا بكم في الاجتماع.','اليوم سنناقش خطة الإطلاق الجديدة.']};
+function saySample(l){const arr=SAMPLES[l]; handleFinal(arr[Math.floor(Math.random()*arr.length)], l==='ar'?'ar-SA':l==='ur'?'ur':'en-US')}
+// live mic — Web Speech API (Chrome/Edge)
+let recog=null,listening=false;
+function toggleMic(){const SR=window.webkitSpeechRecognition||window.SpeechRecognition; const b=document.getElementById('micBtn');
+ if(!SR){alert('Live speech recognition needs Chrome or Edge. Typing + sample buttons work in every browser.');return}
+ if(listening){recog.stop();return}
+ recog=new SR(); recog.lang=speakSel.value; recog.interimResults=true; recog.continuous=true;
+ recog.onresult=e=>{let fin='',inter=''; for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript; e.results[i].isFinal?fin+=t:inter+=t} document.getElementById('partial').innerHTML=inter?`<div class="caption" style="opacity:.55"><b>Speaking…</b> ${inter}</div>`:''; if(fin){document.getElementById('partial').innerHTML=''; handleFinal(fin)}};
+ recog.onend=()=>{listening=false;b.textContent='🎙️ Start speaking';b.classList.remove('rec')};
+ recog.onerror=e=>{if(e.error==='not-allowed')alert('Mic permission was blocked — allow the microphone, or use typing/samples.')};
+ recog.start(); listening=true; b.textContent='⏹ Stop'; b.classList.add('rec')}
+function downloadTranscript(){const txt=history.map(h=>`[${h.src}] ${h.text}\n  -> [${h.tgt}] ${h.tr}`).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt||'No speech yet.'],{type:'text/plain'})); a.download='voicebridge-transcript.txt'; a.click()}
+</script></body></html>
